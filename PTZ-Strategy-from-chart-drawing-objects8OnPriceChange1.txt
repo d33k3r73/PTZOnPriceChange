@@ -433,20 +433,47 @@ namespace NinjaTrader.NinjaScript.Strategies
 
 										Print(string.Format("  PTZDailyPlanURLv2 has {0} properties:", properties.Length));
 
-										// Look for properties that might contain level data
+										// Look for properties that might contain collection/dictionary of levels
 										foreach (var prop in properties)
 										{
 											string propName = prop.Name;
+											var propType = prop.PropertyType;
 
-											// Look for properties that might contain level information
-											if (propName.Contains("Level") || propName.Contains("Price") ||
+											// Look for collections, dictionaries, or arrays that might store level data
+											bool isCollection = propType.IsGenericType &&
+											    (propType.GetGenericTypeDefinition() == typeof(Dictionary<,>) ||
+											     propType.GetGenericTypeDefinition() == typeof(List<>) ||
+											     propType.Name.Contains("Collection"));
+
+											bool isArray = propType.IsArray;
+
+											// Look for properties with relevant names or collection types
+											if (isCollection || isArray ||
+											    propName.Contains("Level") || propName.Contains("Price") ||
 											    propName.Contains("Support") || propName.Contains("Resistance") ||
-											    propName.Contains("Pivot") || propName.Contains("Bull") || propName.Contains("Bear"))
+											    propName.Contains("Pivot") || propName.Contains("Bull") || propName.Contains("Bear") ||
+											    propName.Contains("Line") || propName.Contains("Zone") || propName.Contains("Data"))
 											{
 												try
 												{
 													var value = prop.GetValue(ptzIndicator);
-													Print(string.Format("    Property '{0}' = {1}", propName, value ?? "null"));
+													string valueStr = value?.ToString() ?? "null";
+													string typeStr = propType.Name;
+
+													// If it's a collection, show count
+													if (value != null)
+													{
+														if (value is System.Collections.ICollection collection)
+														{
+															valueStr = string.Format("{0} (Count: {1})", typeStr, collection.Count);
+														}
+														else if (value is System.Collections.IDictionary dict)
+														{
+															valueStr = string.Format("{0} (Count: {1})", typeStr, dict.Count);
+														}
+													}
+
+													Print(string.Format("    Property '{0}' [{1}] = {2}", propName, typeStr, valueStr));
 												}
 												catch (Exception ex)
 												{
