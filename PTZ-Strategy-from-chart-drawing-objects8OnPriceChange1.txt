@@ -252,11 +252,20 @@ namespace NinjaTrader.NinjaScript.Strategies
 				{
 					Print(string.Format("{0}: Scanning {1} objects in DrawObjects collection", Time[0], DrawObjects.Count));
 
+					// Count object types for diagnostics
+					Dictionary<string, int> objectTypeCounts = new Dictionary<string, int>();
+
 					// First pass: collect all text descriptions
 					foreach (var drawObject in DrawObjects)
 					{
 						if (drawObject == null)
 							continue;
+
+						// Track object types
+						string typeName = drawObject.GetType().Name;
+						if (!objectTypeCounts.ContainsKey(typeName))
+							objectTypeCounts[typeName] = 0;
+						objectTypeCounts[typeName]++;
 
 						if (drawObject is NinjaTrader.NinjaScript.DrawingTools.Text)
 						{
@@ -274,7 +283,15 @@ namespace NinjaTrader.NinjaScript.Strategies
 						}
 					}
 
+					// Print object type summary
+					Print("  DrawObject type summary:");
+					foreach (var kvp in objectTypeCounts)
+					{
+						Print(string.Format("    {0}: {1}", kvp.Key, kvp.Value));
+					}
+
 					// Second pass: process lines and rays, matching them with nearby text
+					int debugCount = 0;
 					foreach (var drawObject in DrawObjects)
 					{
 						if (drawObject == null)
@@ -290,6 +307,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 							priceLevel = line.StartAnchor.Price;
 							tag = line.Tag ?? string.Empty;
 							description = tag;
+
+							// Debug first few objects
+							if (debugCount < 3)
+							{
+								Print(string.Format("  DEBUG Line: Price={0:F2}, Tag='{1}', IsLocked={2}", priceLevel, tag, line.IsLocked));
+								debugCount++;
+							}
 						}
 						else if (drawObject is NinjaTrader.NinjaScript.DrawingTools.HorizontalLine)
 						{
@@ -297,6 +321,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 							priceLevel = hLine.StartAnchor.Price;
 							tag = hLine.Tag ?? string.Empty;
 							description = tag;
+
+							// Debug first few objects
+							if (debugCount < 3)
+							{
+								Print(string.Format("  DEBUG HorizontalLine: Price={0:F2}, Tag='{1}', IsLocked={2}", priceLevel, tag, hLine.IsLocked));
+								debugCount++;
+							}
 						}
 						else if (drawObject is NinjaTrader.NinjaScript.DrawingTools.Ray)
 						{
@@ -304,6 +335,13 @@ namespace NinjaTrader.NinjaScript.Strategies
 							priceLevel = ray.StartAnchor.Price;
 							tag = ray.Tag ?? string.Empty;
 							description = tag;
+
+							// Debug first few objects
+							if (debugCount < 3)
+							{
+								Print(string.Format("  DEBUG Ray: Price={0:F2}, Tag='{1}', IsLocked={2}", priceLevel, tag, ray.IsLocked));
+								debugCount++;
+							}
 						}
 
 						if (priceLevel > 0)
