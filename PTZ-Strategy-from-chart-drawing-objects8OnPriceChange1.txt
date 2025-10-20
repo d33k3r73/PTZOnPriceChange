@@ -416,6 +416,69 @@ namespace NinjaTrader.NinjaScript.Strategies
 						{
 							Print(string.Format("{0}: *** Scanning {1} objects in ChartObjects (Chart Objects Window) ***", Time[0], ChartControl.ChartObjects.Count));
 
+							// Find the PTZDailyPlanURLv2 indicator in ChartObjects
+							object ptzIndicator = null;
+							foreach (var chartObject in ChartControl.ChartObjects.ToList())
+							{
+								if (chartObject != null && chartObject.GetType().Name == "PTZDailyPlanURLv2")
+								{
+									ptzIndicator = chartObject;
+									Print(string.Format("  Found PTZDailyPlanURLv2 indicator in ChartObjects!"));
+
+									// Try to access the indicator's public properties/methods using reflection
+									try
+									{
+										var indicatorType = ptzIndicator.GetType();
+										var properties = indicatorType.GetProperties();
+
+										Print(string.Format("  PTZDailyPlanURLv2 has {0} properties:", properties.Length));
+
+										// Look for properties that might contain level data
+										foreach (var prop in properties)
+										{
+											string propName = prop.Name;
+
+											// Look for properties that might contain level information
+											if (propName.Contains("Level") || propName.Contains("Price") ||
+											    propName.Contains("Support") || propName.Contains("Resistance") ||
+											    propName.Contains("Pivot") || propName.Contains("Bull") || propName.Contains("Bear"))
+											{
+												try
+												{
+													var value = prop.GetValue(ptzIndicator);
+													Print(string.Format("    Property '{0}' = {1}", propName, value ?? "null"));
+												}
+												catch (Exception ex)
+												{
+													Print(string.Format("    Property '{0}' - Error: {1}", propName, ex.Message));
+												}
+											}
+										}
+
+										// Also check for common indicator value series
+										var valuesProperty = indicatorType.GetProperty("Values");
+										if (valuesProperty != null)
+										{
+											var values = valuesProperty.GetValue(ptzIndicator);
+											if (values != null)
+											{
+												Print(string.Format("  Indicator has Values collection: {0}", values.GetType().Name));
+											}
+										}
+									}
+									catch (Exception ex)
+									{
+										Print(string.Format("  Error inspecting PTZDailyPlanURLv2: {0}", ex.Message));
+									}
+									break;
+								}
+							}
+
+							if (ptzIndicator == null)
+							{
+								Print("  WARNING: PTZDailyPlanURLv2 indicator not found in ChartObjects");
+							}
+
 							// Count types in ChartObjects
 							Dictionary<string, int> chartObjectTypeCounts = new Dictionary<string, int>();
 							foreach (var drawObject in ChartControl.ChartObjects.ToList())
