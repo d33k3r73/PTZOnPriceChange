@@ -322,10 +322,30 @@ namespace NinjaTrader.NinjaScript.Strategies
 							tag = hLine.Tag ?? string.Empty;
 							description = tag;
 
-							// Debug first few objects
-							if (debugCount < 3)
+							// Debug first few objects - check all possible properties
+							if (debugCount < 5)
 							{
-								Print(string.Format("  DEBUG HorizontalLine: Price={0:F2}, Tag='{1}', IsLocked={2}", priceLevel, tag, hLine.IsLocked));
+								try
+								{
+									// Try to get description from various properties
+									string name = "";
+									try { name = hLine.GetType().GetProperty("Name")?.GetValue(hLine)?.ToString() ?? ""; } catch { }
+
+									string attachedTo = "";
+									try { attachedTo = hLine.AttachedTo?.ToString() ?? ""; } catch { }
+
+									Print(string.Format("  DEBUG HorizontalLine #{0}:", debugCount + 1));
+									Print(string.Format("    Price={0:F2}", priceLevel));
+									Print(string.Format("    Tag='{0}'", tag));
+									Print(string.Format("    Name='{0}'", name));
+									Print(string.Format("    AttachedTo='{0}'", attachedTo));
+									Print(string.Format("    IsLocked={0}", hLine.IsLocked));
+									Print(string.Format("    Stroke='{0}'", hLine.Stroke?.Brush?.ToString() ?? "null"));
+								}
+								catch (Exception ex)
+								{
+									Print(string.Format("  DEBUG Error: {0}", ex.Message));
+								}
 								debugCount++;
 							}
 						}
@@ -387,16 +407,37 @@ namespace NinjaTrader.NinjaScript.Strategies
 				}
 
 				// Also scan ChartControl.ChartObjects for manually drawn objects
+				// IMPORTANT: This is where Chart Objects window shows the objects
 				ChartControl.Dispatcher.InvokeAsync(() =>
 				{
 					try
 					{
 						if (ChartControl.ChartObjects != null && ChartControl.ChartObjects.Count > 0)
 						{
-							Print(string.Format("{0}: Scanning {1} objects in ChartObjects collection", Time[0], ChartControl.ChartObjects.Count));
+							Print(string.Format("{0}: *** Scanning {1} objects in ChartObjects (Chart Objects Window) ***", Time[0], ChartControl.ChartObjects.Count));
+
+							// Count types in ChartObjects
+							Dictionary<string, int> chartObjectTypeCounts = new Dictionary<string, int>();
+							foreach (var drawObject in ChartControl.ChartObjects.ToList())
+							{
+								if (drawObject != null)
+								{
+									string typeName = drawObject.GetType().Name;
+									if (!chartObjectTypeCounts.ContainsKey(typeName))
+										chartObjectTypeCounts[typeName] = 0;
+									chartObjectTypeCounts[typeName]++;
+								}
+							}
+
+							Print("  ChartObject type summary:");
+							foreach (var kvp in chartObjectTypeCounts)
+							{
+								Print(string.Format("    {0}: {1}", kvp.Key, kvp.Value));
+							}
 
 							// First pass: collect text descriptions from ChartObjects
 							Dictionary<double, string> chartTextDescriptions = new Dictionary<double, string>();
+							int chartDebugCount = 0;
 							foreach (var drawObject in ChartControl.ChartObjects.ToList())
 							{
 								if (drawObject == null)
@@ -414,6 +455,28 @@ namespace NinjaTrader.NinjaScript.Strategies
 										chartTextDescriptions[roundedPrice] = displayText;
 										Print(string.Format("  Found ChartObject Text at {0:F2}: {1}", roundedPrice, displayText));
 									}
+								}
+
+								// Debug HorizontalLines from ChartObjects
+								if (drawObject is NinjaTrader.NinjaScript.DrawingTools.HorizontalLine && chartDebugCount < 5)
+								{
+									var hLine = drawObject as NinjaTrader.NinjaScript.DrawingTools.HorizontalLine;
+									try
+									{
+										string tag = hLine.Tag ?? "";
+										string name = "";
+										try { name = hLine.GetType().GetProperty("Name")?.GetValue(hLine)?.ToString() ?? ""; } catch { }
+
+										Print(string.Format("  DEBUG ChartObject HorizontalLine #{0}:", chartDebugCount + 1));
+										Print(string.Format("    Price={0:F2}", hLine.StartAnchor.Price));
+										Print(string.Format("    Tag='{0}'", tag));
+										Print(string.Format("    Name='{0}'", name));
+									}
+									catch (Exception ex)
+									{
+										Print(string.Format("  DEBUG ChartObject Error: {0}", ex.Message));
+									}
+									chartDebugCount++;
 								}
 							}
 
